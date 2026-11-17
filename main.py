@@ -255,6 +255,56 @@ def print_case_result(r):
         print(f"FAIL | 사유: {r['reason']}")
 
 
+PERF_SIZES = (3, 5, 13, 25)  # 성능 측정 대상 크기
+
+
+def make_cross(n):
+    """N x N 십자가(Cross) 패턴을 만든다. (가운데 행/열이 1)"""
+    c = n // 2
+    return [[1 if (i == c or j == c) else 0 for j in range(n)] for i in range(n)]
+
+
+def make_x(n):
+    """N x N X 패턴을 만든다. (두 대각선이 1)"""
+    return [[1 if (i == j or i + j == n - 1) else 0 for j in range(n)] for i in range(n)]
+
+
+def run_performance(sizes=PERF_SIZES, repeat=REPEAT):
+    """크기별 MAC 평균 시간을 측정해 [(N, 평균 ms, 연산 횟수 N²), ...]로 반환한다."""
+    rows = []
+    for n in sizes:
+        pattern = make_x(n)
+        filt = make_cross(n)
+        mac(pattern, filt)  # 워밍업 1회 (첫 호출의 일회성 지연이 평균에 섞이지 않게)
+        avg_ms = measure_mac(pattern, filt, repeat)
+        rows.append((n, avg_ms, n * n))
+    return rows
+
+
+def print_perf_table(sizes=PERF_SIZES):
+    """크기 / 평균 시간(ms) / 연산 횟수(N²) 표를 출력한다."""
+    print(f"{'크기':<10}{'평균 시간(ms)':<16}{'연산 횟수(N²)'}")
+    print("-" * 40)
+    for n, avg_ms, ops in run_performance(sizes):
+        print(f"{f'{n}×{n}':<10}{avg_ms:<16.4f}{ops}")
+
+
+def print_summary(results):
+    """전체 테스트 수 / 통과 수 / 실패 수와 실패 케이스 목록을 출력한다."""
+    total = len(results)
+    passed = sum(1 for r in results if r["status"] == "PASS")
+    failed = total - passed
+
+    print(f"총 테스트: {total}개")
+    print(f"통과: {passed}개")
+    print(f"실패: {failed}개")
+    if failed:
+        print("\n실패 케이스:")
+        for r in results:
+            if r["status"] != "PASS":
+                print(f"- {r['key']}: {r['reason']}")
+
+
 def mode_json_analysis():
     """모드 2: data.json 분석"""
     line = "#" + "-" * 39
@@ -278,7 +328,11 @@ def mode_json_analysis():
         print_case_result(r)
         results.append(r)
 
-    # TODO 6단계: 성능 분석 표 / 7단계: 결과 요약
+    print(f"\n{line}\n# [3] 성능 분석 (평균/{REPEAT}회)\n{line}")
+    print_perf_table()
+
+    print(f"\n{line}\n# [4] 결과 요약\n{line}")
+    print_summary(results)
     return results
 
 
